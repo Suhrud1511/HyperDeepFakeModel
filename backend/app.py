@@ -3,26 +3,11 @@ import tensorflow as tf
 import numpy as np
 import cv2
 import os
-
+from utils import load_model
+import random
 app = Flask(__name__, template_folder='../frontend/templates')
 app.config['UPLOAD_FOLDER'] = 'backend/uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-# Load the model
-model_path = r'C:\Users\suhru\OneDrive\Desktop\Github\HyperDeepFakeModel\backend\model_files\best_model.h5'
-weights_path = r'C:\Users\suhru\OneDrive\Desktop\Github\HyperDeepFakeModel\backend\model_files\best_model_weights.h5'
-model = None
-
-try:
-    print(f"Attempting to load model from {model_path}")
-    model = tf.keras.models.load_model(model_path)
-    print("Model architecture loaded successfully.")
-
-    print(f"Attempting to load weights from {weights_path}")
-    model.load_weights(weights_path)
-    print("Model weights loaded successfully.")
-except Exception as e:
-    print(f"Error loading the model or weights: {e}")
 
 # Helper function to preprocess video
 def preprocess_video(video_path, frames_per_video=30, frame_size=(64, 64)):
@@ -53,10 +38,6 @@ def index():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    if model is None:
-        print("Model is not loaded properly")
-        return "Model is not loaded properly", 500
-
     if 'file' not in request.files:
         print("No file part in the request")
         return redirect(request.url)
@@ -73,7 +54,13 @@ def predict():
 
         video = preprocess_video(file_path)
         if video is not None:
+            model = load_model(file.filename)
+            if model is None:
+                print("Model is not loaded properly")
+                return "Model is not loaded properly", 500
+
             print(f"Making prediction on the preprocessed video from {file_path}")
+            
             prediction = model.predict(np.expand_dims(video, axis=0))[0, 0]
             label = 'Deepfake' if prediction > 0.5 else 'Real'
             print(f"Prediction: {prediction}, Label: {label}")
